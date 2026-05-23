@@ -2,6 +2,7 @@ from app.db.session import SessionLocal
 from app.db.models.enquiry import Enquiry
 from app.db.models.history_event import HistoryEvent
 from app.services.sop_matcher import SOPMatcherService
+from app.services.history_service import HistoryService
 from app.core.enums import EnquiryStatus, EventType
 from app.core.logging import logger
 
@@ -42,24 +43,25 @@ def process_enquiry_task(enquiry_id: int):
         )
         enquiry.status = new_status
 
-        # 4. Create history event for audit trail
+        # 4. Create history event for audit trail via HistoryService
+        event_type = (
+            EventType.ESCALATED
+            if match_result.escalation_required
+            else EventType.SOP_MATCHED
+        )
         event_message = (
             f"SOP Matched: {match_result.matched_sop}"
             if not match_result.escalation_required
             else "Enquiry escalated: No automated match found or critical category detected."
         )
 
-        history_event = HistoryEvent(
+        HistoryService.create_history_event(
+            db=db,
             enquiry_id=enquiry.id,
-            event_type=(
-                EventType.ESCALATED
-                if match_result.escalation_required
-                else EventType.SOP_MATCHED
-            ),
+            event_type=event_type,
             message=event_message,
             metadata_json=match_result.to_dict(),
         )
-        db.add(history_event)
 
         db.commit()
         logger.info(

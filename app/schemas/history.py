@@ -1,22 +1,45 @@
 from datetime import datetime
-from typing import Any, Dict
-from pydantic import BaseModel, ConfigDict
-from app.core.enums import EventType
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, ConfigDict, Field
+from app.core.enums import EventType, EnquiryStatus, PriorityLevel, ChannelType
 
 
-class HistoryEventBase(BaseModel):
-    event_type: EventType
-    message: str
-    metadata_json: Dict[str, Any] | None = None
+class TimelineEventResponse(BaseModel):
+    """
+    Representation of a single audit event in the enquiry lifecycle.
+    """
+
+    event_type: str = Field(..., description="The type of event that occurred")
+    message: str = Field(..., description="Human-readable description of the activity")
+    timestamp: datetime = Field(
+        ..., validation_alias="created_at", description="When the event occurred"
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        None, validation_alias="metadata_json", description="Event-specific payload"
+    )
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
-class HistoryEventInDB(HistoryEventBase):
-    id: int
-    enquiry_id: int
+class EnquiryHistoryResponse(BaseModel):
+    """
+    Full CRM-style activity timeline for a customer enquiry.
+    """
+
+    enquiry_id: int = Field(..., validation_alias="id")
+    customer_name: str
+    channel: ChannelType
+    current_status: EnquiryStatus = Field(..., validation_alias="status")
+    priority: PriorityLevel
     created_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    # Enrichment fields
+    matched_sop: Optional[str] = None
+    suggested_response: Optional[str] = None
 
+    # The actual timeline
+    timeline: List[TimelineEventResponse] = Field(
+        ..., validation_alias="history_events"
+    )
 
-class HistoryEventResponse(HistoryEventInDB):
-    pass
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)

@@ -1,7 +1,9 @@
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 from app.db.models.enquiry import Enquiry
 from app.db.models.history_event import HistoryEvent
 from app.schemas.enquiry import EnquiryCreate
+from app.services.history_service import HistoryService
 from app.core.enums import EnquiryStatus, EventType
 from app.core.logging import logger
 
@@ -36,8 +38,9 @@ class EnquiryService:
         # Flush to get the ID without committing the full transaction yet
         db.flush()
 
-        # 2. Record the initial history event
-        history_event = HistoryEvent(
+        # 2. Record the initial history event using global HistoryService
+        HistoryService.create_history_event(
+            db=db,
             enquiry_id=db_enquiry.id,
             event_type=EventType.CREATED,
             message="Enquiry received and queued for processing.",
@@ -46,7 +49,6 @@ class EnquiryService:
                 "channel": enquiry_in.channel,
             },
         )
-        db.add(history_event)
 
         try:
             db.commit()
@@ -60,3 +62,23 @@ class EnquiryService:
             db.rollback()
             logger.error("Failed to create enquiry", extra={"error": str(e)})
             raise
+
+    @staticmethod
+    def get_enquiry_history(db: Session, enquiry_id: int) -> Enquiry:
+        """
+        Retrieves an enquiry with its full history, sorted chronologically.
+        """
+        logger.info("Fetching enquiry history", extra={"enquiry_id": enquiry_id})
+
+        enquiry = db.query(Enquiry).filter(Enquiry.id == enquiry_id).first()
+        if not enquiry:
+            logger.warning(
+                "History fetch failed: Enquiry not found",
+                extra={"enquiry_id": enquiry_id},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Enquiry with ID {enquiry_id} not found",
+            )
+
+        return enquiry

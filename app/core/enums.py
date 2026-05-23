@@ -23,10 +23,10 @@ class PriorityLevel(str, Enum):
 
 
 class EventType(str, Enum):
-    CREATED = "created"
+    CREATED = "enquiry_created"
     STATUS_CHANGED = "status_changed"
     SOP_MATCHED = "sop_matched"
-    ESCALATED = "escalated"
+    ESCALATED = "escalation_triggered"
     FOLLOWUP_SCHEDULED = "followup_scheduled"
-    FOLLOWUP_SENT = "followup_sent"
+    FOLLOWUP_COMPLETED = "followup_completed"
     ERROR = "error"

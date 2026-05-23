@@ -72,10 +72,9 @@ def test_enquiry_schema_validation():
 
 def test_followup_schema_validation():
     # Valid
-    future_time = datetime.now(timezone.utc) + timedelta(days=1)
     data = {
-        "scheduled_time": future_time.isoformat(),
+        "delay_minutes": 60,
         "template_message": "Checking in",
     }
     schema = FollowupCreate(**data)
-    assert schema.template_message == "Checking in"
+    assert schema.delay_minutes == 60
