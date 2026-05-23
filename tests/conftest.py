@@ -19,6 +19,20 @@ engine = create_engine(
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+@pytest.fixture(scope="function", autouse=True)
+def setup_test_sessions(monkeypatch):
+    """
+    Automatically monkeypatch the application's SessionLocal to use
+    the testing session factory. This ensures background tasks and services
+    use the in-memory test database.
+    """
+    from app.db import session as db_session_module
+    from app.workers import enquiry_processor
+
+    monkeypatch.setattr(db_session_module, "SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr(enquiry_processor, "SessionLocal", TestingSessionLocal)
+
+
 @pytest.fixture(scope="function")
 def db_session():
     """Returns a fresh SQLAlchemy session for a test function."""

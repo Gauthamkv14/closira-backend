@@ -13,7 +13,7 @@ from app.db.base import Base
 
 # Import models to ensure they are registered for table creation
 
-from app.api.routes import health
+from app.api.routes import health, enquiries
 
 # Set up logging globally
 setup_logging()
@@ -72,5 +72,6 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 # Include routers
 app.include_router(health.router, tags=["Health"])
+app.include_router(enquiries.router, prefix="/enquiry", tags=["Enquiries"])
 
 # Other routers will be included here as they are developed

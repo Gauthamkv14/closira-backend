@@ -4,29 +4,26 @@ Professional, production-aware FastAPI backend for an AI-powered customer commun
 
 ## 🚀 Tech Stack
 
-- **Core**: FastAPI (Python 3.10+)
+- **Core**: FastAPI (Python 3.13+)
 - **Database**: SQLite with SQLAlchemy 2.0 ORM
 - **Validation**: Pydantic v2
-- **Logging**: Structured JSON Logging
-- **Scheduling**: FastAPI BackgroundTasks (Async simulation)
-- **Formatting**: Ruff + Black
-- **Testing**: Pytest with in-memory SQLite
+- **Logging**: Structured JSON Logging (python-json-logger)
+- **Scheduling**: FastAPI BackgroundTasks (Async processing simulation)
+- **Tooling**: Ruff (Linter) + Black (Formatter)
+- **Testing**: Pytest with in-memory SQLite and shared connection pool
 
 ## 📂 Folder Structure
 
 ```text
-backend/
-├── app/
-│   ├── api/            # API routes and dependencies
-│   ├── core/           # Config, logging, enums, exceptions
-│   ├── db/             # Models and session management
-│   ├── schemas/        # Pydantic validation models
-│   ├── services/       # Business logic layer
-│   ├── workers/        # Background task processing
-│   └── utils/          # Utility helpers
-├── tests/              # Pytest suite
-├── docs/               # Architecture and decision logs
-└── requirements.txt    # Dependency list
+app/
+├── api/            # Routes (Enquiries, Health) and Dependencies
+├── core/           # Config, logging, enums, centralized exceptions
+├── db/             # SQLAlchemy Models and Session management
+├── schemas/        # Pydantic validation & response models
+├── services/       # Business logic (SOP Matcher, Enquiry Service)
+├── workers/        # Async background task processors
+└── utils/          # Time utilities and helpers
+tests/              # Comprehensive test suite (Unit, Integration, Worker)
 ```
 
 ## 🛠️ Setup Instructions
@@ -43,35 +40,64 @@ backend/
    pip install -r requirements.txt
    ```
 4. **Environment Configuration**:
-   Copy `.env.example` to `.env` and adjust as needed.
+   The app uses `.env` for configuration. Copy `.env.example` to `.env`.
 
 ## 🏃 Running the Application
 
-Start the development server:
 ```bash
 uvicorn app.main:app --reload
 ```
-The API documentation will be available at: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+Review the interactive API docs at: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 ## 🧪 Running Tests
 
+The project maintains a strict testing threshold (currently 16/16 passing):
 ```bash
 python -m pytest
 ```
 
 ## 🧠 Architecture Decisions
 
-- **Domain-Driven Models**: Intentional CRM-like modeling for enquiries, history, and follow-ups.
-- **Service Layer**: Business logic is decoupled from API routes to maintain "Clean Architecture" principles.
-- **Structured Logging**: JSON format logs ensure observability in production environments.
-- **SQLite for Assignment**: Zero-latency local setup while maintaining ACID compliance via SQLAlchemy.
-- **BackgroundTasks**: Used to simulate async AI processing (SOP matching) without the overhead of Celery/Redis.
+- **Acknowledgement Pattern**: `POST /enquiry` returns a tracking ID and `queued` state immediately. This reflects a real-world async CRM ingestion pipeline.
+- **SOP Matching Engine**: A deterministic keyword-driven service in `app/services/sop_matcher.py`. Designed to be easily swapped with an LLM/AI model in the future.
+- **CRM Timeline (History)**: Every enquiry lifecycle change (creation, SOP match, escalation) is recorded as a `HistoryEvent` with JSON metadata for auditability.
+- **Service Isolation**: Route handlers are kept thin; all database transactions and complex logic reside in the `Service` layer.
+- **SQLite Concurrency**: Configured with `StaticPool` and `check_same_thread=False` to handle FastAPI's multi-threaded worker dispatch safely.
+
+## 📡 Key Endpoints
+
+### Health Check
+`GET /health`
+- **Response**: `{"status": "healthy", "database": "connected", "timestamp": "..."}`
+
+### Enquiry Intake
+`POST /enquiry/`
+- **Purpose**: High-speed induction of customer messages.
+- **Payload**:
+  ```json
+  {
+    "customer_name": "Sarah Johnson",
+    "channel": "email",
+    "message": "Can you share your pricing plans?"
+  }
+  ```
+- **Response (Immediate Acknowledgement)**:
+  ```json
+  {
+    "enquiry_id": 1,
+    "status": "received",
+    "processing_state": "queued",
+    "created_at": "2026-05-23T16:17:42Z"
+  }
+  ```
 
 ## 📈 Current Progress
 
-- [x] Foundation (Logger, Database, Exceptions)
-- [x] Domain Modeling & Validation
-- [x] API Refinement & Documentation
-- [ ] Service Layer (In-progress)
-- [ ] Background Worker (Pending)
-- [ ] Integration Testing (Pending)
+- [x] **Foundation**: Structured logging, Global Exceptions, Health Monitoring.
+- [x] **Domain Core**: SQLAlchemy 2.0 Models, Pydantic v2 schemas.
+- [x] **Enquiry Intake**: REST endpoint with BackgroundTask integration.
+- [x] **Auto-Processor**: Keyword-based SOP matching engine.
+- [x] **Audit Trail**: History event persistence for every state change.
+- [ ] **Follow-up Flow**: Scheduled messaging system (Next).
+- [ ] **Escalation Hub**: Specialized endpoints for management review.
+- [ ] **Timeline View**: History fetching and aggregation.
